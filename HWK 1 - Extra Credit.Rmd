@@ -1,0 +1,90 @@
+---
+title: "Linux power tools"
+author: "Farnoosh Koleini"
+date: "Jan 22, 2023"
+output: beamer_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Linux command: \texttt{ls}
+
+**Brief description:** The \texttt{ls} for each operand that names a file of a type other than directory, ls displays its name as well as any requested, associated information.For each operand that names a file of type directory, ls displays the names of files contained within that directory, as well as any requested,associated information.
+
+**Example:** List the contents of the current working directory in long format:
+
+```{bash, echo=TRUE, eval=FALSE}
+$ List the contents
+$ ls -l
+Storm-Data-Bulk-csv-Format.pdf
+Storm-Data-Export-Format.pdf
+StormEvents_details-ftp_v1.0_d1950_c20210803.csv.gz
+StormEvents_details-ftp_v1.0_d1951_c20210803.csv.gz
+StormEvents_details-ftp_v1.0_d1952_c20210803.csv.gz
+```
+
+## Linux command: \texttt{man}
+
+**Brief description:** \texttt{man} formats and displays the on-line manual pages. If you specify section, man only looks in that section of the manual.name is normally the name of the manual page, which is typically the name of a command, function, or file.  However, if name contains a slash (/) then man interprets it as a file specification, so that you can do man ./foo.5 or even man /cd/foo/bar.1.gz.
+
+**Example:**  Format and display the on-line manual pages:
+
+```{bash, echo=TRUE, eval=FALSE}
+$ the on-line manual pages
+$ man
+```
+
+## Linux command: \texttt{mv}
+
+**Brief description:** \texttt{mv} in its first form, the mv utility renames the file named by the source operand to the destination path named by the target operand.  This form is assumed when the last operand does not name an already existing directory. In its second form, mv moves each file named by a source operand to a destination file in the existing directory named by the directory operand.  The destination path for each operand is the pathname produced by the concatenation of the last operand, a slash, and the final pathname component of the named file.
+
+**Example:**  Rename file, overwriting if it already exists:
+
+```{bash, echo=TRUE, eval=FALSE}
+$ mv StormEvents_locations.csv tmp/
+$ ls tmp/
+```
+
+## Linux command: \texttt{open}
+
+**Brief description:** The \texttt{open} command opens a file (or a directory or URL), just as if you had double-clicked the file's icon. If no application name is specified, the default application as determined via Launch Services is used to open the specified files. If the file is in the form of a URL, the file will be opened as a URL.
+
+**Example:**  Opens that directory in the Finder:
+
+```{bash, echo=TRUE, eval=FALSE}
+$ Opens that directory
+$ open "./pub/data/swdi/stormevents/csvfiles/
+$ Storm-Data-Export-Format.pdf"
+```
+
+## Linux command: \texttt{paste}
+
+**Brief description:** The \texttt{paste} utility concatenates the corresponding lines of the given input files, replacing all but the last file's newline characters with a single tab character, and writes the resulting lines to standard output. If end-of-file is reached on an input file while other input files still contain data, the file is treated as if it were an endless source of empty lines.
+
+**Example:** Using paste for attaching two different columns of two files:
+
+```{bash, echo=TRUE, eval=FALSE}
+$ paste tmp/3rd.csv tmp/1st.csv | head
+EVENT_ID	YEARMONTH
+990000001	197206
+990000001	197206
+5548852	199603
+5548853	199603
+5548854	199603
+```
+
+## Linux command: \texttt{pwd}
+
+**Brief description:** The \texttt{pwd} utility writes the absolute pathname of the current working directory to the standard output.
+
+**Example:** Show current working directory with symbolic links resolved:
+
+```{bash, echo=TRUE, eval=FALSE}
+$ Show current working directory
+$ pwd 
+$ /Users/koleinif20/Desktop/www.ncei.noaa.gov.bk/pub
+$ /data/swdi/stormevents/csvfiles
+```
+
