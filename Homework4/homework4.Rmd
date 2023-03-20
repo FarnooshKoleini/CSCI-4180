@@ -1,0 +1,220 @@
+---
+title: "Cypher and SQL and Js"
+author: "Farnoosh Koleini"
+date: '2023-03-18'
+output: html_document
+---
+
+**1. Relational database schema design (10 pts)**              
+
+# creating a table for accidents
+
+CREATE TABLE IF NOT EXISTS public.accidents
+(
+    "Accident_Index" character varying(255) COLLATE pg_catalog."default",
+    "Accident_Severity" character varying(255) COLLATE pg_catalog."default"
+)
+
+```{r, echo=FALSE, out.width="75%", fig.align = "center"}
+ knitr::include_graphics("/Users/koleinif20/Desktop/big_data/Homework4\ /accidents_tabel.png")
+```
+
+# creating a table for model
+
+CREATE TABLE IF NOT EXISTS public.model
+(
+    "Accident_Index" character varying(255) COLLATE pg_catalog."default",
+    "Vehicle_Type" character varying(255) COLLATE pg_catalog."default"
+)
+
+```{r, echo=FALSE, out.width="75%", fig.align = "center"}
+ knitr::include_graphics("/Users/koleinif20/Desktop/big_data/Homework4\ /model_table.png")
+```
+
+# creating a table for vehicle_type
+
+CREATE TABLE IF NOT EXISTS public.vehicle_type
+(
+    code character varying(255) COLLATE pg_catalog."default",
+    label character varying(255) COLLATE pg_catalog."default"
+)
+
+```{r, echo=FALSE, out.width="75%", fig.align = "center"}
+ knitr::include_graphics("/Users/koleinif20/Desktop/big_data/Homework4\ /vehicle_type_table.png")
+```
+
+**2. Neo4j schema design and data load (35 pts)**
+
+2.1 Schema design (10 pts)
+Draw the database schema for the graph database. You can use http://www.apcjones.com/ arrows, or draw it on paper and add a picture of it.
+
+```{r, echo=FALSE, out.width="75%", fig.align = "center"}
+ knitr::include_graphics("/Users/koleinif20/Desktop/big_data/Homework4\ /arrow_tool.png")
+```
+
+**2.2 Data load (25 pts) List the Cypher queries to load the data in the database.**
+
+CREATE (:Accidents ('Accident Index:'', 'Accident Severity': 0});
+CREATE (:Make Model { 'Accident Index': '', 'Vehicle Type': 0});
+CREATE (:Vehicle_Type {Code: 0, Label:''});
+
+LOAD CSV WITH HEADERS FROM 'file:///Accidents.csv' AS row
+CREATE (:Accidents {
+  'Accident Index': row. 'Accident Index' ,
+  'Accident Severity': toInteger (row. 'Accident Severity')
+})
+LOAD CSV WITH HEADERS FROM file:///Make_Model.csv' AS row
+CREATE (:Make_Model {
+  'Accident Index': row. 'Accident Index' ,
+  'Vehicle Type': toInteger (row. 'Vehicle Type')
+})
+LOAD CSV WITH HEADERS FROM 'file:///Vehicle_Type.csv' AS row
+MERGE (:Vehicle Type {
+  Code: toInteger (row. code),
+  Label: row.label
+})
+
+
+**3. MongoDB data load (5 pts)**
+
+Follow the instructions from MongoDB to import data with MongoDB Compass. Include a
+screenshot of the loaded collection(s).
+
+```{r, echo=FALSE, out.width="75%", fig.align = "center"}
+ knitr::include_graphics("/Users/koleinif20/Desktop/big_data/Homework4\ /accident.png")
+```
+
+```{r, echo=FALSE, out.width="75%", fig.align = "center"}
+ knitr::include_graphics("/Users/koleinif20/Desktop/big_data/Homework4\ /model.png")
+```
+
+```{r, echo=FALSE, out.width="75%", fig.align = "center"}
+ knitr::include_graphics("/Users/koleinif20/Desktop/big_data/Homework4\ /vehicle_type.png")
+```
+
+**4. Data analysis (60 pts: 20 pts each per SQL, Cypher, and MongoDB queries)**
+
+# SQL query
+
+SELECT vehicle_type.code, AVG(accidents.accident_severity) AS average_accident_severity,
+percentile_cont(0.5) WITHIN GROUP (ORDER BY accidents.accident_severity) AS median_accident_severity
+FROM accidents
+JOIN make_model ON accidents.accident_index = make_model.accident_index
+JOIN vehicle_type ON make_model.vehicle_type = vehicle_type.code
+WHERE vehicle_type.label ILIKE '%motorcycle%'
+GROUP BY 
+  vehicle_type.code;
+
+
+# Cypher query
+
+MATCH (a:accidents)-[:accident_index]->(mm:make_model)-[:code]->(vt:vehicle_type)
+WHERE tolower(vt.label) CONTAINS "motorcycle"
+RETURN vt.label, AVG(a.Accident_Severity) as avg_severity
+MATCH (mm:make_model)-[:code]->(vt:vehicle_type)
+WHERE toLower(vt.label) CONTAINS 'motorcycle'
+WITH vt.label AS label, COLLECT(mm.Accident_Severity) AS severities
+WITH label, apoc.coll.sort(severities) AS sortedSeverities
+WITH label, CASE 
+WHEN size(sortedSeverities) % 2 = 0
+THEN (sortedSeverities[size(sortedSeverities) / 2] + sortedSeverities[(size(sortedSeverities) / 2) - 1]) / 2.0
+ELSE sortedSeverities[(size(sortedSeverities) - 1) / 2]
+END AS medianSeverity
+RETURN label, medianSeverity
+
+
+# MongoDB query
+
+**Create intermediary collection with initial aggregation results**
+db.createCollection("intermediary")
+db.accident.aggregate([
+  {$lookup: {from: "model", localField: "accident_index", foreignField: "accident_index", as: "model"}},
+  {$unwind: "$model"},
+  {$lookup: {from: "vehicle_type", localField: "model.vehicle_type", foreignField: "code", as: "vehicle_type"}},
+  {$unwind: "$vehicle_type"},
+  {$match: {"vehicle_type.label": /motorcycle/i}},
+  {$group: {_id: "$vehicle_type.code", avg_accident_severity: {$avg: "$accident_severity"}}},
+  {$out: "intermediary"}
+])
+
+**Calculate median using additional queries on intermediary collection**
+db.intermediary.aggregate([
+  {$group: {_id: "$_id", avg_accident_severity: {$first: "$avg_accident_severity"}, sorted_accident_severity: {$push: "$avg_accident_severity"}}},
+  {$project: {median_accident_severity: {$arrayElemAt: ["$sorted_accident_severity", {$floor: {$divide: [{$size: "$sorted_accident_severity"}, 2]} } ] } } }
+])
+
+this approach requires creating a new collection to store the intermediary results, and may not be the most efficient way to calculate the median in MongoDB. Another option would be to use the bucket aggregation stage to bin the accident_severity values and then calculate the median based on the bin boundaries. Using the bucket aggregation stage in MongoDB, we can group the accident severity values into separate buckets based on their value, and then find the bucket that contains the median value. Here's the code for that:
+
+db.accident.aggregate([
+  {
+    $lookup: {
+      from: "model",
+      localField: "accident_index",
+      foreignField: "accident_index",
+      as: "model"
+    }
+  },
+  {
+    $unwind: "$model"
+  },
+  {
+    $lookup: {
+      from: "vehicle_type",
+      localField: "model.vehicle_type",
+      foreignField: "code",
+      as: "vehicle_type"
+    }
+  },
+  {
+    $unwind: "$vehicle_type"
+  },
+  {
+    $match: {
+      "vehicle_type.label": /motorcycle/i
+    }
+  },
+  {
+    $group: {
+      _id: "$vehicle_type.code",
+      average_accident_severity: { $avg: "$accident_severity" },
+      buckets: {
+        $push: "$accident_severity"
+      }
+    }
+  },
+  {
+    $project: {
+      _id: 1,
+      average_accident_severity: 1,
+      median_accident_severity: {
+        $let: {
+          vars: {
+            count: { $size: "$buckets" },
+            middle: { $trunc: { $divide: [ { $size: "$buckets" }, 2 ] } }
+          },
+          in: {
+            $cond: {
+              if: { $eq: [ { $mod: [ { $size: "$buckets" }, 2 ] }, 0 ] },
+              then: { $avg: [ { $arrayElemAt: [ "$buckets", "$middle" ] }, { $arrayElemAt: [ "$buckets", { $subtract: [ "$middle", 1 ] } ] } ] },
+              else: { $arrayElemAt: [ "$buckets", "$middle" ] }
+            }
+          }
+        }
+      }
+    }
+  }
+])
+
+**Results:**
+
+```{r, echo=FALSE, out.width="75%", fig.align = "center"}
+ knitr::include_graphics("/Users/koleinif20/Desktop/big_data/Homework4\ /sql_answer.png")
+```
+
+
+
+
+
+
+
+
